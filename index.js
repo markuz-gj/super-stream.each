@@ -7,6 +7,8 @@
   * @description 
   *
   * [![NPM version](https://badge.fury.io/js/super-stream.each.png)](https://npmjs.org/package/super-stream.each) [![Build Status](https://travis-ci.org/markuz-gj/super-stream.each.png?branch=master)](https://travis-ci.org/markuz-gj/super-stream.each) [![Dependency Status](https://david-dm.org/markuz-gj/super-stream.each.png)](https://david-dm.org/markuz-gj/super-stream.each) [![devDependency Status](https://david-dm.org/markuz-gj/super-stream.each/dev-status.png)](https://david-dm.org/markuz-gj/super-stream.each#info=devDependencies) [![Coverage Status](https://coveralls.io/repos/markuz-gj/super-stream.each/badge.png?branch=master)](https://coveralls.io/r/markuz-gj/super-stream.each?branch=master) [![MIT Licensed](http://img.shields.io/badge/license-MIT-blue.svg)](#license)
+  *
+  * ##\# Not ready yet
   * 
   * See also.  
   * [`super-stream`](https://github.com/markuz-gj/super-stream)  
