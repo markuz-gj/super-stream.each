@@ -22,10 +22,59 @@ livereload = require "gulp-livereload"
 tinylr = require "tiny-lr"
 conn = require "connect"
 conn.livereload = require 'connect-livereload'
-conn.markdown = require "markdown-middleware"
+conn.markdown = require "marked-middleware"
 
-through = require "super-stream.through"
-thr = through.obj
+wait = require ('lodash.throttle')
+
+each = require './index'
+thr = each.obj
+
+
+
+###*
+ * @constructor
+ * @return {Defered} - A deferred promise
+ * @description - A simple wraper around es6-promise
+###
+Deferred = () ->
+  @promise = new Promise (resolve, reject) =>
+    ###*
+     * @private
+     * @type {Function}
+    ###
+    @resolve_ = resolve
+
+    ###*
+     * @private
+     * @type {Function}
+    ###
+    @reject_ = reject
+
+  return @
+
+###*
+ * An alias for `resolve` calback function
+ * @memberOf Deffered 
+###
+Deferred::resolve = -> @resolve_.apply @promise, arguments
+  
+###*
+ * An alias for `reject` calback function
+ * @memberOf Deffered 
+###
+Deferred::reject = -> @reject_.apply @promise, arguments
+  
+###*
+ * An alias for `then` method
+ * @memberOf Deffered 
+###
+Deferred::then = -> @promise.then.apply @promise, arguments
+  
+###*
+ * An alias for `catch` method
+ * @memberOf Deffered 
+###
+Deferred::catch = -> @promise.catch.apply @promise, arguments
 
 ###*
   * @param {Object} evt - event object from gulp.watch
@@ -65,10 +114,10 @@ mocha =  (spec) ->
   ->
     cmd = "./node_modules/mocha/bin/mocha  --compilers coffee:coffee-script/register #{spec} -R spec -t 1000 "
     shell cmd
-      .catch (err) ->
-        throw new Error err
       .then (str) ->
         console.log str
+      .catch (err) ->
+        throw new Error err
 
 ###*
   * @param {String} spec - filename of the test to be run
@@ -80,23 +129,31 @@ istanbul = (spec) ->
     cmd = "./node_modules/istanbul/lib/cli.js cover --report html ./node_modules/mocha/bin/_mocha -- #{spec} -R dot -t 1000"
     
     shell cmd
+      .then (str) ->
+        buf = []
+        buf.push "Istanbul coverage summary:"
+        buf.push "=================================="
+        buf.push str.split('\n')[-11..-8].join('\n')
+        buf.push "==================================\n"
+
+        console.log buf.join '\n'
+
       .catch (err) ->
         throw new Error err
-      .then (str) ->
-        console.log "\nIstanbul coverage summary:"
-        console.log "==========================\n"
-        console.log str.split('\n')[7..10].join('\n')
-        fpath = "#{str.split('\n')[-3..-3].join('').split(' ')[4].split('')[1..-2].join('')}/index.html"
-        console.log "\nopen:", "./#{path.relative process.cwd(), fpath}"
-
 ###*
   * @param {String} glob - glob pattern to watch. NOTE: doesn't support an array.
   * @returns {Function} - A gulp task
   * @desc 
   * It creates a express/livereload servers and server the `./coverage/index.html`, `./jsdoc/index.html` and `./*.md` diles
   ###
-server = (glob) ->
-  globs = [glob, "./coverage/index.html", './jsdoc/index.html']
+server =  (glob) ->
+
+  glob ?= do ->
+    # little hack to trigger a reload when the task is first fired up
+    # not perfect, but get the job done
+    shell 'sleep 1 && touch index.coffee'
+    return './{spec,index}.coffee'
+
   app = express()
 
   app.use conn.errorHandler {dumpExceptions: true, showStack: true }
@@ -118,14 +175,18 @@ server = (glob) ->
   lrUp = new Promise (resolve, reject) ->
     serverLR.listen 35729, (err) ->
      return reject err if err
-     resolve()
+     resolve serverLR
 
-  ->
-    gulp.watch globs, (evt) ->
+  run = (evt) ->
+    if evt.type isnt 'added'
       lrUp.then ->
-        log 'LR: reloading....'
+        log 'reloading', magenta "./#{path.relative(process.cwd(), evt.path)}"
         gulp.src evt.path
           .pipe livereload serverLR
+
+  run = wait run, 500, {trailing: yes, leading: no}
+  ->
+    gulp.watch glob, run
 
 ###*
   * @private
@@ -134,12 +195,13 @@ server = (glob) ->
 writeReadme = ->
 
   fixLine = (line) ->
-    line.replace /^[ ]*\* @description/, ''
-      .replace /^[ ]*\* @desc/, ''
+    line.replace /^[ ]*\* (@description|@example|@readme|@desc)/, ''
       .replace /^[ ]*\*/, ''
       .replace /^[ ]/, ''
 
-  thr (f, e, n) ->
+  return thr (f, e, n) ->
+    return n null, f if f.path.match /md$/
+    
     cache = {}
     cache.str = []
     cache.bool = no
@@ -157,7 +219,7 @@ writeReadme = ->
           cache.str.push cache.buf.join '\n'
         cache.buf = []
 
-      if line.match /\* @desc/
+      if line.match(/\* (@desc|@readme|@example)/)
         cache.bool = yes
 
       if cache.bool
@@ -179,16 +241,31 @@ fixMarkdown = ->
     n null, f
 
 ###*
+  * @private
+  * @returns {Transform} - A `Transform` Stream which extract all block code language type metatdata. 
+  ###
+fixJsdoc = ->
+  thr (f, e, n) ->
+    cache = {}
+    cache.str = []
+    cache.bool = no
+    cache.buf = []
+
+    f.contents = new Buffer f.contents.toString().replace /(```javascript|```)/g, ''
+    n null, f
+
+###*
  * @param {String} src - glob pattern to watch. NOTE: doesn't support an array
  * @returns {Function} - A gulp task
  ###
 compileDoc = (src) ->
   # # sample template config
+
   # template = {
   #   path: 'ink-docstrap'
   #   systemName: 'super-stream'
-  #   footer: 'lol - my footer'
-  #   copyright: "my copyright"
+  #   # footer: ':)'
+  #   copyright: "2014 (c) MIT"
   #   navType: "vertical"
   #   theme: "spacelab"
   #   linenums: yes
@@ -201,12 +278,13 @@ compileDoc = (src) ->
     markdown: 
       parser: 'gfm'
       hardwrap: yes
+      readme: './README.md'
 
   -> 
-
-    gulp.src replaceExtension(src, '.js')
+    gulp.src [replaceExtension(src, '.js')]
       .pipe fixMarkdown()
       .pipe writeReadme()
+      .pipe fixJsdoc()
       .pipe jsdoc.parser config
       .pipe jsdoc.generator 'jsdoc'
       # .pipe jsdoc.generator 'jsdoc', template
@@ -229,4 +307,5 @@ module.exports =
   server: server
   jsdoc: compileDoc
   coffee: compileCoffee
+  Deferred: Deferred
 

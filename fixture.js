@@ -1,13 +1,10 @@
 var Deferred, Promise, bufferMode, extendCtx, objectMode, sinon, spy, through;
 
-through = require("super-stream.through");
+through = require("./index");
 
 sinon = require("sinon");
 
 Promise = require("es6-promise").Promise;
-
-
-/* istanbul ignore next */
 
 spy = function(stream) {
   var agent, fn;
@@ -31,9 +28,6 @@ spy.free = [];
 
 spy.used = [];
 
-
-/* istanbul ignore next */
-
 extendCtx = function(fn) {
   this.thr = fn.factory(this.optA);
   this.thrX = fn.factory(this.optB);
@@ -42,17 +36,14 @@ extendCtx = function(fn) {
   this.stB = this.thr(this.optA);
   spy(this.stA);
   spy(this.stB);
-  this.streamsArray = [this.stA, this.stB, this.stX, this.stY, this.stZ];
+  this.streamsArray = [this.stA, this.stB, this.stX, this.stY];
   return this.dataArray = [this.data1, this.data2];
 };
 
 bufferMode = {
   desc: 'streams in buffer mode:',
-
-  /* istanbul ignore next */
   before: function(fn) {
     return function() {
-      var ctor;
       this.optA = {};
       this.optB = {
         objectMode: true
@@ -65,17 +56,10 @@ bufferMode = {
         return n(null, c);
       });
       spy(this.stY);
-      ctor = fn.ctor(this.optA, function(c, e, n) {
-        return n(null, c);
-      });
-      this.stZ = ctor();
-      spy(this.stZ);
       extendCtx.call(this, fn);
       return this;
     };
   },
-
-  /* istanbul ignore next */
   after: function() {
     var agent, _i, _len, _ref, _results;
     _ref = spy.used;
@@ -90,11 +74,8 @@ bufferMode = {
 
 objectMode = {
   desc: 'streams in object mode:',
-
-  /* istanbul ignore next */
   before: function(fn) {
     return function() {
-      var ctor;
       this.optA = {
         objectMode: true
       };
@@ -107,17 +88,10 @@ objectMode = {
         return n(null, c);
       });
       spy(this.stY);
-      ctor = fn.ctor(this.optA, function(c, e, n) {
-        return n(null, c);
-      });
-      this.stZ = ctor();
-      spy(this.stZ);
       extendCtx.call(this, fn);
       return this;
     };
   },
-
-  /* istanbul ignore next */
   after: function() {
     var agent, _i, _len, _ref, _results;
     _ref = spy.used;
@@ -130,9 +104,6 @@ objectMode = {
   }
 };
 
-
-/* istanbul ignore next */
-
 Deferred = function() {
   this.promise = new Promise((function(_this) {
     return function(resolve, reject) {
@@ -143,29 +114,17 @@ Deferred = function() {
   return this;
 };
 
-
-/* istanbul ignore next */
-
 Deferred.prototype.resolve = function() {
   return this.resolve_.apply(this.promise, arguments);
 };
-
-
-/* istanbul ignore next */
 
 Deferred.prototype.reject = function() {
   return this.reject_.apply(this.promise, arguments);
 };
 
-
-/* istanbul ignore next */
-
 Deferred.prototype.then = function() {
   return this.promise.then.apply(this.promise, arguments);
 };
-
-
-/* istanbul ignore next */
 
 Deferred.prototype["catch"] = function() {
   return this.promise["catch"].apply(this.promise, arguments);

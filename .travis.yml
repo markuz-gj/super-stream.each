@@ -1,0 +1,22 @@
+language: node_js
+node_js:
+  - '0.11'
+  - '0.10'
+deploy:
+  provider: npm
+  email: markuz.br@gmail.com
+  api_key:
+    secure: UvvLUP3/FmgkkYiDdoowaSVFh9rXBsmL3kfBRusEKCHHW4Fd/yL4cBy0xZISSYf8YC58bljp9571QreUT1Rj902J2tvVzJjhJEgYLcI27lFkfV+PXOt421lM9eeW9YuS34X/sKlOwpT1aK1TWBzU6C4W6muAsv/QnIkvqnMpZ+E=
+  on:
+    tags: true
+    repo: markuz-gj/super-stream.through
+    node: 0.10
+
+before_script:
+  - rm -rf *.coffee coverage jsdoc build.sh
+
+script:
+  - npm run coveralls
+
+after_success:
+ - cat ./coverage/lcov.info | coveralls && rm -rf ./coverage

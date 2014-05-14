@@ -1,7 +1,7 @@
 ###*
  * @author Marcos GJ
  * @license MIT
- * @desc gulpfile for through
+ * @desc gulpfile for each
  ###
 
 gulp = require "gulp"
@@ -21,7 +21,8 @@ gulp.task "compile:doc", ["compile:coffee"], jsdoc SRC
 gulp.task "test:mocha", mocha SPEC
 gulp.task "test:istanbul", ["compile:coffee"], istanbul SPEC
 
-gulp.task "server", ["test:mocha", "test:istanbul", "compile:doc"], server SPEC
+if process.argv[-1..-1][0] is 'watch'
+  gulp.task "server", ["test:mocha", "test:istanbul", "compile:doc"], server './coverage/index.html'
 
 compile = -> gulp.start "compile:doc"
 test = -> gulp.start "test:mocha", "test:istanbul" 
@@ -31,6 +32,8 @@ gulp.task "compile", compile
 
 gulp.task "watch", ["compile", "server"], ->
   gulp.watch ["./gulpfile.coffee", ETC], exit
-  gulp.watch [SRC, SPEC, FIXTURE], (evt) -> compile(); test()
+  gulp.watch [SRC, SPEC, FIXTURE], (evt) -> 
+    if evt.type isnt 'added'
+      compile(); test()
 
 gulp.task "default", ["compile", "test"]

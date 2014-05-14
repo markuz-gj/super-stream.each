@@ -1,9 +1,8 @@
-through = require "super-stream.through"
+through = require "./index"
 sinon = require "sinon"
 {Promise} = require "es6-promise"
 
 
-### istanbul ignore next ###
 spy = (stream) ->
   if spy.free.length is 0
     agent = sinon.spy()
@@ -24,7 +23,6 @@ spy = (stream) ->
 spy.free = []
 spy.used = []
 
-### istanbul ignore next ###
 extendCtx = (fn) ->
   @thr = fn.factory @optA
   @thrX = fn.factory @optB
@@ -37,12 +35,11 @@ extendCtx = (fn) ->
   spy @stA
   spy @stB
 
-  @streamsArray = [@stA, @stB, @stX, @stY, @stZ]
+  @streamsArray = [@stA, @stB, @stX, @stY]
   @dataArray = [@data1, @data2]
   
 bufferMode = 
   desc: 'streams in buffer mode:'
-  ### istanbul ignore next ###
   before: (fn) ->
     ->
       @optA = {}
@@ -56,21 +53,15 @@ bufferMode =
       @stY = fn.buf (c,e,n) -> n(null, c)
       spy @stY
 
-      ctor = fn.ctor @optA, (c,e,n) -> n(null, c)
-      @stZ = ctor()  
-      spy @stZ    
-
       extendCtx.call @, fn
       return @
 
-  ### istanbul ignore next ###
   after: ->
     for agent in spy.used
       spy.free.push spy.used.pop()
 
 objectMode = 
   desc: 'streams in object mode:'
-  ### istanbul ignore next ###
   before: (fn) ->
     ->
       @optA = {objectMode: yes}
@@ -84,19 +75,13 @@ objectMode =
       @stY = fn.obj (c,e,n) -> n(null, c)
       spy @stY
 
-      ctor = fn.ctor @optA, (c,e,n) -> n(null, c)
-      @stZ = ctor()  
-      spy @stZ    
-
       extendCtx.call @, fn
       return @
     
-  ### istanbul ignore next ###
   after: ->
     for agent in spy.used
       spy.free.push spy.used.pop()
 
-### istanbul ignore next ###
 Deferred = () ->
   @promise = new Promise (resolve, reject) =>
     @resolve_ = resolve
@@ -104,16 +89,12 @@ Deferred = () ->
 
   return @
 
-### istanbul ignore next ###
 Deferred::resolve = -> @resolve_.apply @promise, arguments
 
-### istanbul ignore next ###
 Deferred::reject = -> @reject_.apply @promise, arguments
 
-### istanbul ignore next ###
 Deferred::then = -> @promise.then.apply @promise, arguments
 
-### istanbul ignore next ###
 Deferred::catch = -> @promise.catch.apply @promise, arguments
 
 module.exports =
