@@ -6,7 +6,7 @@
     "pretest": "npm install",
     "test": "mocha ./spec/index.coffee --compilers coffee:coffee-script/register -R spec -t 1000",
     "coveralls": "istanbul cover -x spec --report lcovonly _mocha -- --compilers coffee:coffee-script/register ./spec/index.coffee -R spec -t 1000",
-    "cover": "istanbul cover -x spec --report html _mocha -- --compilers coffee:coffee-script/register ./index.coffee -R spec -t 1000"
+    "cover": "istanbul cover -x spec --report html _mocha -- --compilers coffee:coffee-script/register ./spec/index.coffee -R spec -t 1000"
   },
   "keywords": [
     "streams",
