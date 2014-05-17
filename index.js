@@ -21,14 +21,10 @@
   *
   * * * *
  */
-var buf, defaults, each, factory, isFunction, obj, through;
-
-through = require("super-stream.through");
-
-isFunction = require("lodash.isfunction");
-
-defaults = require("lodash.defaults");
-
+var through = require("super-stream.through")
+, isFunction = require("lodash.isfunction")
+, defaults = require("lodash.defaults")
+;
 
 /**
   * @instance
@@ -90,22 +86,21 @@ defaults = require("lodash.defaults");
   * ```
  */
 
-each = function(cfg) {
+function each (cfg) {
   return function(options, transform, flush) {
     if (isFunction(options)) {
-      flush = transform;
-      transform = options;
-      options = cfg;
+      flush = transform
+      transform = options
+      options = cfg
     } else {
-      options = defaults(options, cfg);
+      options = defaults(options, cfg)
     }
     if (arguments.length === 0) {
-      options = cfg;
+      options = cfg
     }
-    return through(options, transform, flush);
-  };
-};
-
+    return through(options, transform, flush)
+  }
+}
 
 /** 
   * @static
@@ -134,10 +129,8 @@ each = function(cfg) {
  */
 
 obj = function(transform, flush) {
-  return through({
-    objectMode: true
-  }, transform, flush);
-};
+  return through({objectMode: true}, transform, flush)
+}
 
 
 /** 
@@ -172,10 +165,8 @@ obj = function(transform, flush) {
  */
 
 buf = function(transform, flush) {
-  return through({
-    objectMode: false
-  }, transform, flush);
-};
+  return through({objectMode: false}, transform, flush)
+}
 
 
 /** 
@@ -222,15 +213,15 @@ buf = function(transform, flush) {
  */
 
 factory = function(cfg) {
-  var fn;
-  if (cfg == null) {
-    cfg = {};
-  }
-  fn = each(cfg);
-  fn.factory = factory;
-  fn.obj = obj;
-  fn.buf = buf;
-  return fn;
+  var fn
+  ;
+  cfg = cfg || {}
+
+  fn = each(cfg)
+  fn.factory = factory
+  fn.obj = obj
+  fn.buf = buf
+  return fn
 };
 
 
@@ -253,5 +244,4 @@ factory = function(cfg) {
   *
   * [![NPM](https://nodei.co/npm/super-stream.each.png)](https://nodei.co/npm/super-stream.each/) [![NPM](https://nodei.co/npm-dl/super-stream.each.png)](https://nodei.co/npm/super-stream.each/)
  */
-
-module.exports = factory();
+module.exports = factory()

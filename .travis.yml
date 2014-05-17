@@ -9,7 +9,7 @@ deploy:
     secure: UvvLUP3/FmgkkYiDdoowaSVFh9rXBsmL3kfBRusEKCHHW4Fd/yL4cBy0xZISSYf8YC58bljp9571QreUT1Rj902J2tvVzJjhJEgYLcI27lFkfV+PXOt421lM9eeW9YuS34X/sKlOwpT1aK1TWBzU6C4W6muAsv/QnIkvqnMpZ+E=
   on:
     tags: true
-    repo: markuz-gj/super-stream.through
+    repo: markuz-gj/super-stream.each
     node: 0.10
 
 before_script:

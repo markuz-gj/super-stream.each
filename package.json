@@ -4,16 +4,15 @@
   "description": "transform through stream",
   "scripts": {
     "pretest": "npm install",
-    "test": "mocha -- ./spec.js -R spec -t 1000",
-    "coveralls": "istanbul cover --report lcovonly _mocha -- ./spec.js -R spec -t 1000",
-    "cover": "istanbul cover --report html _mocha -- ./spec.js -R spec -t 1000"
+    "test": "mocha ./spec/index.coffee --compilers coffee:coffee-script/register -R spec -t 1000",
+    "coveralls": "istanbul cover -x spec --report lcovonly _mocha -- --compilers coffee:coffee-script/register ./spec/index.coffee -R spec -t 1000",
+    "cover": "istanbul cover -x spec --report html _mocha -- --compilers coffee:coffee-script/register ./index.coffee -R spec -t 1000"
   },
   "keywords": [
     "streams",
     "Transform",
     "Duplex",
     "through",
-    "each",
     "Stream"
   ],
   "author": "Markuz GJ",
@@ -22,9 +21,10 @@
   "dependencies": {
     "lodash.defaults": "^2.4.1",
     "lodash.isfunction": "^2.4.1",
-    "super-stream.through": "0.0.3"
+    "super-stream.through": "~0.0.x"
   },
   "devDependencies": {
+    "etc-etc": "git+https://github.com/markuz-gj/etc-etc",
     "chai": "^1.9.1",
     "coffee-script": "^1.7.1",
     "connect": "^2.15.0",
