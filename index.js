@@ -29,7 +29,6 @@
 var through = require("super-stream.through")
 , isFunction = require("lodash.isfunction")
 , defaults = require("lodash.defaults")
-, inherits = require('util').inherits
 ;
 
 /**
@@ -110,15 +109,12 @@ function mainFactory (cfg) {
     stream = through(options, transform, flush)
     stream._each = stream._transform
 
-    function Ctor (){}
-    Ctor.prototype = stream    
-    ctx = new Ctor()
-
+    mainCtx = Object.create(stream)
     stream._transform = function _transform (chunk, enc, done) {
+      ctx = Object.create(mainCtx)
       ctx.chunk = chunk
       ctx.encoding = enc
       ctx.next = function next (data) { 
-        data = data || chunk
         done(null, data)
       }
 
@@ -126,7 +122,6 @@ function mainFactory (cfg) {
     }
 
     return stream
-
   }
 }
 

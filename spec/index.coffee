@@ -10,7 +10,7 @@ expect = chai.expect
 chai.config.showDiff = no
 
 each = require ".."
-{bufferMode, objectMode, Deferred} = require "./fixture"
+{bufferMode, objectMode, Deferred, spy} = require "./fixture"
 
 describe "exported value:", ->
   it 'must be a function', ->
@@ -28,36 +28,7 @@ describe "exported value:", ->
     expect(each).to.have.property "factory"
     expect(each.factory).to.be.an.instanceof Function
 
-      
-describe "stream contex:", ->
-  it "must have only `chunk`, `encoding` and `next` property on the stream", ->
-    st = each -> 
-      expect(@).to.have.property "chunk"
-      expect(@).to.have.property "encoding"
-      expect(@).to.have.property "next"
-    st.write('')
 
-  it "must have a `this._each` property on stream ctx and not as own property", ->
-    transform = ->
-      expect(@).to.have.property "_each"
-      expect(@).to.not.have.ownProperty "_each"
-
-    st = each transform
-    st.write ''
-
-  it "must have `this._each` function equal the given transform", ->
-    transform = ->
-      expect(@_each.toString()).to.equal transform.toString()
-
-    st = each  transform
-    st.write ''
-
-  it "must have `this._encoding` being the rigth encoding", ->
-    stA = each -> expect(@encoding).to.equal 'buffer'
-    stB = each.obj -> expect(@encoding).to.equal 'utf8'
-
-    stA.write ''
-    stB.write ''
 
 for mode in [bufferMode, objectMode]
   do (mode) ->
@@ -65,88 +36,135 @@ for mode in [bufferMode, objectMode]
       beforeEach mode.before each
       afterEach mode.after
 
-      it "must return an instanceof Transform", (done) ->
-        @streamsArray.map (stream, i) =>
-          expect(stream).to.be.an.instanceof Transform
-          done() if i is @streamsArray.length - 1
+      it "must return an instanceof Transform", ->
+        @defer.resolve()
+        return @defer.then =>
+          @streamsArray.map (stream, i) =>
+            expect(stream).to.be.an.instanceof Transform
 
-      it "must return a noop stream if called without arguments", (done) ->
-        @noop.pipe @thr (c,e,n) =>
-          expect(c).to.be.equal @data1
-          done()
+      it "must return a noop stream if called without arguments", ->
+        @defer.resolve()
+        return @defer.then =>
+          @noop.pipe @thr (c,e,n) => expect(c).to.be.equal @data1
+          @noop.write @data1
 
-        @noop.write @data1
-
-      it "must pass data through stream unchanged", (done) ->
-        cache = []
-        defer = new Deferred()
-
-        defer.then =>
-          cache.map (spy, i) =>
-            expect(spy).to.have.been.calledWith @data1
-            expect(spy).to.have.been.calledOnce
-            done() if i is cache.length - 1
-        .catch done
-
+      it "must pass data through stream unchanged", ->
         @streamsArray.map (stream, i) =>
           stream.write @data1
-          cache.push stream.spy
-          defer.resolve() if i is @streamsArray.length - 1
+          @cache.push stream.spy
 
-      it "must be able to re-use the same stream multiple times", (done) ->
-        cache = []
-        defer = new Deferred()
+        @defer.resolve()
+        return @defer.then =>
+          @cache.map (spy, i) =>
+            expect(spy).to.have.been.calledWith @data1
+            expect(spy).to.have.been.calledOnce
 
-        defer.then =>
-          cache.map (v, i) =>
-            expect(v.spy).to.have.been.calledWith v.data
-            expect(v.spy).to.have.callCount @dataArray.length
-            done() if i is cache.length - 1
-        .catch done
-
+      it "must be able to re-use the same stream multiple times", ->
         @streamsArray.map (stream, i) =>
           @dataArray.map (data, j) =>
             stream.write data
-            cache.push {spy: stream.spy, data: data}
-            defer.resolve() if i is @streamsArray.length - 1  and j is @dataArray.length - 1
+            @cache.push {spy: stream.spy, data: data}
 
-      it "must pass data down stream multiple times", (done) ->
-        cache = []
+        @defer.resolve()
+        return @defer.then =>
+          @cache.map (v, i) =>
+            expect(v.spy).to.have.been.calledWith v.data
+            expect(v.spy).to.have.callCount @dataArray.length
+
+      it "must pass data down stream multiple times", ->
         lastSpy = @streamsArray[-1..-1][0].spy
-        defer = new Deferred()
+        @noop.pipe @streamsArray[0]
 
-        defer.then =>
+        @streamsArray.map (stream, i) =>
+          if i is @streamsArray.length - 1
+            @dataArray.map (data, j) => @noop.write data
+            return 
+          stream.pipe @streamsArray[i + 1]
+        
+        @defer.resolve()
+        return @defer.then =>
           expect(lastSpy).to.have.callCount @dataArray.length
           @dataArray.map (data, i) =>
             expect(lastSpy).to.have.been.calledWith data
-            done() if i is @dataArray.length - 1
-        .catch done
 
-        @noop.pipe @streamsArray[0]
-        @streamsArray.map (stream, i) =>
-          if i is @streamsArray.length - 1
-            return @dataArray.map (data, j) =>
-              @noop.write data
-              defer.resolve() if j is @dataArray.length - 1
 
-          stream.pipe @streamsArray[i + 1]
+      describe "stream contex:", ->
 
-      it "must have the this stuff", (done) ->
-        cache = []
-        defer = new Deferred()
+        it "must have only `chunk`, `encoding`, `next` on the stream inner ctx", ->
+          @streamsArray.map (stream, i) =>
+            @dataArray.map (data, j) =>
+              stream.write data
+              @cache.push {stream: stream, data: data}
+          
+          @defer.resolve()
+          return @defer.then =>
+            @cache.map (v, i) =>
+              expect(v.stream).to.not.have.property "chunk"
+              expect(v.stream).to.not.have.property "encoding"
+              expect(v.stream).to.not.have.property "next"
 
-        defer.then =>
-          cache.map (v, i) =>
-            expect(v.spy).to.have.been.calledWith v.data
-            expect(v.spy).to.have.callCount @dataArray.length
-            done() if i is cache.length - 1
-        .catch done
+              v.stream.spy2.args.map (x) ->
+                ctx = x[0]
+                expect(ctx).to.have.property "chunk"
+                expect(ctx).to.have.property "encoding"
+                expect(ctx).to.have.property "next"
 
-        @streamsArray.map (stream, i) =>
-          @dataArray.map (data, j) =>
-            stream.write data
-            cache.push {spy: stream.spy, data: data}
-            defer.resolve() if i is @streamsArray.length - 1  and j is @dataArray.length - 1
+        it "must have `this.chunk` being equal to the data passed into transform", ->
+          @streamsArray.map (stream, i) =>
+            @dataArray.map (data, j) =>
+              stream.write data
+              @cache.push {stream: stream, data: data}
+          
+          @defer.resolve()
+          return @defer.then =>
+            @cache.map (v, i) =>
+              v.stream.spy2.args.map (x, j) ->
+                ctx = x[0]
+                args = x[1]
+                expect(ctx.chunk).to.be.equal args[0]
 
+        it "must have `this.encoding` being the rigth encoding", ->
+          @streamsArray.map (stream, i) =>
+            @dataArray.map (data, j) =>
+              stream.write data
+              @cache.push {stream: stream, data: data}
+          
+          @defer.resolve()
+          return @defer.then =>
+            @cache.map (v, i) =>
+              v.stream.spy2.args.map (x, j) ->
+                ctx = x[0]
+                args = x[1]
+                expect(ctx.encoding).to.be.equal args[1]
+
+        it "must have a `this._each` property on stream ctx and not as own property", ->
+          @streamsArray.map (stream, i) =>
+            @dataArray.map (data, j) =>
+              stream.write data
+              @cache.push {stream: stream, data: data}
+          
+          @defer.resolve()
+          return @defer.then =>
+            @cache.map (v, i) =>
+              expect(v.stream).have.property "_each"
+
+              v.stream.spy2.args.map (x) ->
+                expect(x[0]).to.not.have.ownProperty "_each"
+                expect(x[0]).to.have.property "_each"
+
+        it "must not remove any property added to the inner ctx", ->
+          @streamsArray.map (stream, i) =>
+            @dataArray.map (data, j) =>
+              stream.write data
+              @cache.push {stream: stream, data: data}
+          
+          @defer.resolve()
+          return @defer.then =>
+            @cache.map (v, i) =>
+              expect(v.stream).have.property "_each"
+
+              v.stream.spy2.args.map (x) ->
+                expect(x[0]).to.not.have.ownProperty "_each"
+                expect(x[0]).to.have.property "_each"
 
 

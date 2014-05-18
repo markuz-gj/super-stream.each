@@ -14,6 +14,9 @@ var gulp = require('gulp')
 , FIXTURE = './spec/fixture.coffee'
 ;
 
+// require('string.prototype.repeat') // es6 shim
+
+
 gulp.task("test:mocha", etc.mocha(SPEC))
 gulp.task("test:istanbul", etc.istanbul(SPEC))
 gulp.task('compile:docs', etc.jsdoc(SRC))

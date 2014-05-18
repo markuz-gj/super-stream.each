@@ -2,24 +2,52 @@ through = require "./index"
 sinon = require "sinon"
 {Promise} = require "es6-promise"
 
-spy = (stream, transform) ->
+Deferred = () ->
+  @promise = new Promise (resolve, reject) =>
+    @resolve_ = resolve
+    @reject_ = reject
+
+  return @
+
+Deferred::resolve = -> @resolve_.apply @promise, arguments
+
+Deferred::reject = -> @reject_.apply @promise, arguments
+
+Deferred::then = -> @promise.then.apply @promise, arguments
+
+Deferred::catch = -> @promise.catch.apply @promise, arguments
+
+spy = (stream) ->
   if spy.free.length is 0
-    agent = sinon.spy()
+    agent1 = sinon.spy()
+    agent2 = sinon.spy()
+  else if spy.free.length is 1
+    agent1 = spy.free.pop()
+    agent1.reset()
+    agent2 = sinon.spy()
   else
-    agent = spy.free.pop()
-    agent.reset()
+    agent1 = spy.free.pop()
+    agent2 = spy.free.pop()
+    agent1.reset()
+    agent2.reset()
 
-  spy.used.push agent
-  fn = stream._transform
-  stream.spy = agent
+  spy.used.push agent1
+  spy.used.push agent2
+  
+  stream.spy = agent1
+  stream.spy2 = agent2
 
-  transform = transform or (c) ->
-    agent c
-    fn.apply @, arguments
+  transform = stream._transform
+  each = stream._each
 
-  stream._transform = transform
+  stream._transform = (c) ->
+    agent1 c
+    transform.apply @, [].slice.call(arguments)
 
-  return agent
+  stream._each = ->
+    agent2 @, [].slice.call(arguments)
+    each.apply @, [].slice.call(arguments)
+  return
 
 spy.free = []
 spy.used = []
@@ -32,13 +60,18 @@ extendCtx = (fn) ->
 
   @stA = @thr()
   @stB = @thr @optA
+  @stC = @thr (c) -> @next @chunk
 
   spy @stA
   spy @stB
+  spy @stC
 
-  @streamsArray = [@stA, @stB, @stX, @stY]
+  @streamsArray = [@stA, @stB, @stC, @stX, @stY]
   @dataArray = [@data1, @data2]
-  
+
+  @cache = []
+  @defer = new Deferred()
+
 bufferMode = 
   desc: 'streams in buffer mode:'
   before: (fn) ->
@@ -82,21 +115,6 @@ objectMode =
   after: ->
     for agent in spy.used
       spy.free.push spy.used.pop()
-
-Deferred = () ->
-  @promise = new Promise (resolve, reject) =>
-    @resolve_ = resolve
-    @reject_ = reject
-
-  return @
-
-Deferred::resolve = -> @resolve_.apply @promise, arguments
-
-Deferred::reject = -> @reject_.apply @promise, arguments
-
-Deferred::then = -> @promise.then.apply @promise, arguments
-
-Deferred::catch = -> @promise.catch.apply @promise, arguments
 
 module.exports =
   bufferMode: bufferMode
