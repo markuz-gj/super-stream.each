@@ -2,8 +2,7 @@ through = require "./index"
 sinon = require "sinon"
 {Promise} = require "es6-promise"
 
-
-spy = (stream) ->
+spy = (stream, transform) ->
   if spy.free.length is 0
     agent = sinon.spy()
   else
@@ -14,9 +13,11 @@ spy = (stream) ->
   fn = stream._transform
   stream.spy = agent
 
-  stream._transform = (c) ->
+  transform = transform or (c) ->
     agent c
     fn.apply @, arguments
+
+  stream._transform = transform
 
   return agent
 
@@ -101,3 +102,4 @@ module.exports =
   bufferMode: bufferMode
   objectMode: objectMode
   Deferred: Deferred
+  spy: spy

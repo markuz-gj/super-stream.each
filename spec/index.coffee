@@ -24,10 +24,40 @@ describe "exported value:", ->
     expect(each).to.have.property "buf"
     expect(each.buf).to.be.an.instanceof Function
 
-
   it "must have factory property", ->
     expect(each).to.have.property "factory"
     expect(each.factory).to.be.an.instanceof Function
+
+      
+describe "stream contex:", ->
+  it "must have only `chunk`, `encoding` and `next` property on the stream", ->
+    st = each -> 
+      expect(@).to.have.property "chunk"
+      expect(@).to.have.property "encoding"
+      expect(@).to.have.property "next"
+    st.write('')
+
+  it "must have a `this._each` property on stream ctx and not as own property", ->
+    transform = ->
+      expect(@).to.have.property "_each"
+      expect(@).to.not.have.ownProperty "_each"
+
+    st = each transform
+    st.write ''
+
+  it "must have `this._each` function equal the given transform", ->
+    transform = ->
+      expect(@_each.toString()).to.equal transform.toString()
+
+    st = each  transform
+    st.write ''
+
+  it "must have `this._encoding` being the rigth encoding", ->
+    stA = each -> expect(@encoding).to.equal 'buffer'
+    stB = each.obj -> expect(@encoding).to.equal 'utf8'
+
+    stA.write ''
+    stB.write ''
 
 for mode in [bufferMode, objectMode]
   do (mode) ->
@@ -101,10 +131,22 @@ for mode in [bufferMode, objectMode]
 
           stream.pipe @streamsArray[i + 1]
 
+      it "must have the this stuff", (done) ->
+        cache = []
+        defer = new Deferred()
 
+        defer.then =>
+          cache.map (v, i) =>
+            expect(v.spy).to.have.been.calledWith v.data
+            expect(v.spy).to.have.callCount @dataArray.length
+            done() if i is cache.length - 1
+        .catch done
 
-
-
+        @streamsArray.map (stream, i) =>
+          @dataArray.map (data, j) =>
+            stream.write data
+            cache.push {spy: stream.spy, data: data}
+            defer.resolve() if i is @streamsArray.length - 1  and j is @dataArray.length - 1
 
 
 

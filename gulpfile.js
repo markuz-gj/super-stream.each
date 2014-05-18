@@ -18,7 +18,8 @@ gulp.task("test:mocha", etc.mocha(SPEC))
 gulp.task("test:istanbul", etc.istanbul(SPEC))
 gulp.task('compile:docs', etc.jsdoc(SRC))
 
-gulp.task('test', ['test:istanbul'])
+gulp.task('test', ['test:mocha'])
+// gulp.task('test', ['test:istanbul'])
 
 gulp.task('watch:etc', function(){
   gulp.watch([__filename, '../etc-etc/*.{js,coffee}'], etc.exit)

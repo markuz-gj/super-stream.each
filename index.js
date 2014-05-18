@@ -29,6 +29,7 @@
 var through = require("super-stream.through")
 , isFunction = require("lodash.isfunction")
 , defaults = require("lodash.defaults")
+, inherits = require('util').inherits
 ;
 
 /**
@@ -91,8 +92,10 @@ var through = require("super-stream.through")
   * ```
  */
 
-function each (cfg) {
-  return function(options, transform, flush) {
+function mainFactory (cfg) {
+  return function each (options, transform, flush) {
+    var stream, ctx
+    ;
     if (isFunction(options)) {
       flush = transform
       transform = options
@@ -103,7 +106,27 @@ function each (cfg) {
     if (arguments.length === 0) {
       options = cfg
     }
-    return through(options, transform, flush)
+
+    stream = through(options, transform, flush)
+    stream._each = stream._transform
+
+    function Ctor (){}
+    Ctor.prototype = stream    
+    ctx = new Ctor()
+
+    stream._transform = function _transform (chunk, enc, done) {
+      ctx.chunk = chunk
+      ctx.encoding = enc
+      ctx.next = function next (data) { 
+        data = data || chunk
+        done(null, data)
+      }
+
+      this._each.apply(ctx, arguments)
+    }
+
+    return stream
+
   }
 }
 
@@ -133,8 +156,22 @@ function each (cfg) {
   * ```
  */
 
-obj = function(transform, flush) {
-  return through({objectMode: true}, transform, flush)
+function objFactory (cfg) {
+  return function obj (options, transform, flush) {
+    if (isFunction(options)) {
+      flush = transform
+      transform = options
+      options = cfg
+    } else {
+      options = defaults(options, cfg)
+    }
+    if (arguments.length === 0) {
+      options = cfg
+    }
+
+    options.objectMode = true
+    return mainFactory(options)(options, transform, flush)
+  }
 }
 
 
@@ -169,8 +206,22 @@ obj = function(transform, flush) {
   * ```
  */
 
-buf = function(transform, flush) {
-  return through({objectMode: false}, transform, flush)
+function bufFactory (cfg) {
+  return function buf (options, transform, flush) {
+    if (isFunction(options)) {
+      flush = transform
+      transform = options
+      options = cfg
+    } else {
+      options = defaults(options, cfg)
+    }
+    if (arguments.length === 0) {
+      options = cfg
+    }
+
+    options.objectMode = false
+    return mainFactory(options)(options, transform, flush)
+  }
 }
 
 
@@ -222,10 +273,10 @@ factory = function(cfg) {
   ;
   cfg = cfg || {}
 
-  fn = each(cfg)
+  fn = mainFactory(cfg)
+  fn.obj = objFactory(cfg)
+  fn.buf = bufFactory(cfg)
   fn.factory = factory
-  fn.obj = obj
-  fn.buf = buf
   return fn
 };
 
