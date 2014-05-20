@@ -21,6 +21,7 @@
   "dependencies": {
     "lodash.defaults": "^2.4.1",
     "lodash.isfunction": "^2.4.1",
+    "lodash.isnull": "^2.4.1",
     "super-stream.through": "~0.0.x"
   },
   "devDependencies": {

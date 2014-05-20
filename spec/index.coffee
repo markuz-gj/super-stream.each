@@ -90,53 +90,6 @@ for mode in [bufferMode, objectMode]
 
       describe "stream contex:", ->
 
-        it "must have only `chunk`, `encoding`, `next` on the stream inner ctx", ->
-          @streamsArray.map (stream, i) =>
-            @dataArray.map (data, j) =>
-              stream.write data
-              @cache.push {stream: stream, data: data}
-          
-          @defer.resolve()
-          return @defer.then =>
-            @cache.map (v, i) =>
-              expect(v.stream).to.not.have.property "chunk"
-              expect(v.stream).to.not.have.property "encoding"
-              expect(v.stream).to.not.have.property "next"
-
-              v.stream.spy2.args.map (x) ->
-                ctx = x[0]
-                expect(ctx).to.have.property "chunk"
-                expect(ctx).to.have.property "encoding"
-                expect(ctx).to.have.property "next"
-
-        it "must have `this.chunk` being equal to the data passed into transform", ->
-          @streamsArray.map (stream, i) =>
-            @dataArray.map (data, j) =>
-              stream.write data
-              @cache.push {stream: stream, data: data}
-          
-          @defer.resolve()
-          return @defer.then =>
-            @cache.map (v, i) =>
-              v.stream.spy2.args.map (x, j) ->
-                ctx = x[0]
-                args = x[1]
-                expect(ctx.chunk).to.be.equal args[0]
-
-        it "must have `this.encoding` being the rigth encoding", ->
-          @streamsArray.map (stream, i) =>
-            @dataArray.map (data, j) =>
-              stream.write data
-              @cache.push {stream: stream, data: data}
-          
-          @defer.resolve()
-          return @defer.then =>
-            @cache.map (v, i) =>
-              v.stream.spy2.args.map (x, j) ->
-                ctx = x[0]
-                args = x[1]
-                expect(ctx.encoding).to.be.equal args[1]
-
         it "must have a `this._each` property on stream ctx and not as own property", ->
           @streamsArray.map (stream, i) =>
             @dataArray.map (data, j) =>
@@ -152,19 +105,88 @@ for mode in [bufferMode, objectMode]
                 expect(x[0]).to.not.have.ownProperty "_each"
                 expect(x[0]).to.have.property "_each"
 
-        it "must not remove any property added to the inner ctx", ->
+        it "must keep any data attached into inner ctx and not leak to the outer ctx", ->
+          hasCounter = (id) =>
+            # only the 3rd to 6th streams sets up a counter.
+            return (id >= 2) and (id < 6)
+
           @streamsArray.map (stream, i) =>
             @dataArray.map (data, j) =>
               stream.write data
-              @cache.push {stream: stream, data: data}
+              @cache.push {stream: stream, data: data, streamID: i}
           
           @defer.resolve()
           return @defer.then =>
             @cache.map (v, i) =>
-              expect(v.stream).have.property "_each"
+              expect(v.stream).to.not.have.property "counter"
 
-              v.stream.spy2.args.map (x) ->
-                expect(x[0]).to.not.have.ownProperty "_each"
-                expect(x[0]).to.have.property "_each"
+              v.stream.spy2.args.map (x) =>
+                ctx = x[0]
+
+                if hasCounter v.streamID
+                  expect(ctx).to.have.property("counter").and.be.equal @dataArray.length
+                else
+                  expect(ctx).to.not.have.property "counter"
+
+      describe "user's transform returned value:", ->
+        
+        it "must throw if a Error object is returned", ->
+          @streamsArray.push(@stError)
+
+          @streamsArray.map (stream, i) =>
+            @dataArray.map (data, j) =>
+              stream.on 'error', (err) =>
+                expect(i).to.be.equal @streamsArray.length - 1
+                expect(err.message).to.be.equal 'stError'
+                expect(err.message).to.not.be.equal 'eeee'
+
+              stream.write data
+              @cache.push {spy: stream.spy, data: data, streamID: i}
+
+          @defer.resolve()
+          return @defer.then =>
+            @cache.map (v, i) =>
+              expect(v.spy).to.have.been.calledWith v.data
+              expect(v.spy).to.have.callCount @dataArray.length
+
+        it "must execute callback only after returned promise is resolved", ->
+          @streamsArray.push(@stPromise)
+
+          @streamsArray.map (stream, i) =>
+            @dataArray.map (data, j) =>
+              if (i is @streamsArray.length - 1) and (j is @dataArray.length - 1)
+                # delaying defer until the very last moment.
+                stream.pipe @thr (c) => @defer.resolve() 
+              stream.write data
+              @cache.push {spy: stream.spy, data: data, streamID: i}
+
+          return @defer.then =>
+            @cache.map (v, i) =>
+              expect(v.spy).to.have.been.calledWith v.data
+              expect(v.spy).to.have.callCount @dataArray.length
+
+        it "must throw if returned promise is rejected", ->
+          @streamsArray.push(@stPromiseError)
+
+          @streamsArray.map (stream, i) =>
+            @dataArray.map (data, j) =>
+
+              stream.on 'error', (err) =>
+                expect(i).to.be.equal @streamsArray.length - 1
+                expect(err.message).to.be.equal 'stPromiseError'
+                expect(err.message).to.not.be.equal 'eeee'
+
+              if (i is @streamsArray.length - 1) and (j is @dataArray.length - 1)
+                # delaying defer until the very last moment.
+                stream.pipe @thr (c) => @defer.resolve() 
+
+              stream.write data
+              @cache.push {spy: stream.spy, data: data, streamID: i}
+
+          return @defer.then =>
+            @cache.map (v, i) =>
+              expect(v.spy).to.have.been.calledWith v.data
+              expect(v.spy).to.have.callCount @dataArray.length
+
 
 

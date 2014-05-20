@@ -29,7 +29,10 @@
 var through = require("super-stream.through")
 , isFunction = require("lodash.isfunction")
 , defaults = require("lodash.defaults")
+, isNull = require('lodash.isnull')
+, Promise = Promise || require('es6-promise').Promise
 ;
+
 
 /**
   * @instance
@@ -91,6 +94,7 @@ var through = require("super-stream.through")
   * ```
  */
 
+
 function mainFactory (cfg) {
   return function each (options, transform, flush) {
     var stream, ctx
@@ -109,18 +113,42 @@ function mainFactory (cfg) {
     stream = through(options, transform, flush)
     stream._each = stream._transform
 
-    mainCtx = Object.create(stream)
-    stream._transform = function _transform (chunk, enc, done) {
-      ctx = Object.create(mainCtx)
-      ctx.chunk = chunk
-      ctx.encoding = enc
-      ctx.next = function next (data) { 
-        done(null, data)
+    ctx = Object.create(stream)
+    stream._transform = function _transform (chunk, enc, _next) {
+      var nextCalled = false
+      , retValue
+      , promiseStatus
+      ;
+
+      function next () {
+        nextCalled = true
+        _next.apply(_next, arguments)
       }
 
-      this._each.apply(ctx, arguments)
-    }
+      function flush (value){
+        next(null, value)
+      }
 
+      function forceThrow (err) {
+        setImmediate(function(){
+          next(err)
+        })
+      }
+
+      retValue = this._each.call(ctx, chunk, enc, next)
+
+ 
+      if (isNull(retValue)) return
+      
+      if (retValue instanceof Promise) {
+        return retValue.then(flush).catch(forceThrow)
+      }
+
+      if (retValue instanceof Error) return next(retValue)
+      
+      if (!nextCalled) return next()
+      
+    }
     return stream
   }
 }
