@@ -8,7 +8,7 @@
 [![devDependency Status](https://david-dm.org/markuz-gj/super-stream.each/dev-status.png)](https://david-dm.org/markuz-gj/super-stream.each#info=devDependencies)
 [![MIT Licensed](http://img.shields.io/badge/license-MIT-blue.svg)](#license)
 
-### Not ready yet
+### Better docs comming
 
 See also.  
 [`super-stream`](https://github.com/markuz-gj/super-stream)  
